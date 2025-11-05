@@ -10,6 +10,8 @@ export interface Post {
   authorAddress: string;
   content: string;
   image?: string;
+  mediaUrl?: string;
+  mediaType?: 'image' | 'video';
   timestamp: number;
   likes: number;
   comments: number;
@@ -38,9 +40,26 @@ export const PostCard = ({ post, onLike, onEarn }: PostCardProps) => {
   };
 
   const handleShare = () => {
-    toast.success("Post shared!", {
-      description: "Your network will see this post"
-    });
+    const shareText = `${post.content}\n\nShared from DecentGram`;
+    
+    if (navigator.share && (post.mediaUrl || post.image)) {
+      // Web Share API with media
+      navigator.share({
+        title: 'DecentGram Post',
+        text: shareText,
+        url: post.mediaUrl || post.image
+      }).catch(() => {
+        // Fallback if share fails
+        navigator.clipboard.writeText(`${shareText}\n${post.mediaUrl || post.image || ''}`);
+        toast.success("Link copied!", {
+          description: "Post link copied to clipboard"
+        });
+      });
+    } else {
+      toast.success("Post shared!", {
+        description: "Your network will see this post"
+      });
+    }
   };
 
   const timeAgo = () => {
@@ -75,12 +94,22 @@ export const PostCard = ({ post, onLike, onEarn }: PostCardProps) => {
       {/* Content */}
       <div className="px-4 pb-4">
         <p className="text-foreground mb-3">{post.content}</p>
-        {post.image && (
-          <img
-            src={post.image}
-            alt="Post content"
-            className="w-full rounded-lg object-cover max-h-96"
-          />
+        {(post.mediaUrl || post.image) && (
+          <div className="rounded-lg overflow-hidden">
+            {(post.mediaType === 'video') ? (
+              <video 
+                src={post.mediaUrl} 
+                controls 
+                className="w-full max-h-96 object-cover"
+              />
+            ) : (
+              <img
+                src={post.mediaUrl || post.image}
+                alt="Post content"
+                className="w-full rounded-lg object-cover max-h-96"
+              />
+            )}
+          </div>
         )}
       </div>
 

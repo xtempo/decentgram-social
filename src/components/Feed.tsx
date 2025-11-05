@@ -4,7 +4,7 @@ import { CreatePost } from "./CreatePost";
 interface FeedProps {
   posts: Post[];
   onLike: (postId: string) => void;
-  onPost: (content: string, image?: string) => void;
+  onPost: (content: string, mediaUrl?: string, mediaType?: 'image' | 'video') => void;
   onEarn: (amount: number) => void;
 }
 

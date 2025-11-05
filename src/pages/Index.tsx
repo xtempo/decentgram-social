@@ -59,13 +59,14 @@ const Index = () => {
     ));
   };
 
-  const handlePost = (content: string, image?: string) => {
+  const handlePost = (content: string, mediaUrl?: string, mediaType?: 'image' | 'video') => {
     const newPost: Post = {
       id: Date.now().toString(),
       author: "You",
       authorAddress: walletAddress || "0x...",
       content,
-      image,
+      mediaUrl,
+      mediaType,
       timestamp: Date.now(),
       likes: 0,
       comments: 0,
