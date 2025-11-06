@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Image, Send, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { processMedia } from "@/utils/mediaProcessor";
 
 interface CreatePostProps {
   onPost: (content: string, mediaUrl?: string, mediaType?: 'image' | 'video') => void;
@@ -55,7 +56,7 @@ export const CreatePost = ({ onPost }: CreatePostProps) => {
     try {
       let mediaUrl = "";
       
-      if (mediaFile) {
+      if (mediaFile && mediaType) {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           toast.error("You must be logged in to upload media");
@@ -63,20 +64,28 @@ export const CreatePost = ({ onPost }: CreatePostProps) => {
           return;
         }
 
-        const fileExt = mediaFile.name.split('.').pop();
-        const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+        // Process media to remove metadata and preserve quality
+        toast.info("Processing media...");
+        const { blob, fileName } = await processMedia(mediaFile, mediaType);
+        
+        const filePath = `${user.id}/${fileName}`;
         
         const { data, error } = await supabase.storage
           .from('media')
-          .upload(fileName, mediaFile);
+          .upload(filePath, blob, {
+            cacheControl: '3600',
+            upsert: false,
+            contentType: mediaFile.type
+          });
 
         if (error) throw error;
 
         const { data: { publicUrl } } = supabase.storage
           .from('media')
-          .getPublicUrl(fileName);
+          .getPublicUrl(filePath);
 
         mediaUrl = publicUrl;
+        toast.success("Media processed and uploaded!");
       }
 
       onPost(content, mediaUrl, mediaType || undefined);
