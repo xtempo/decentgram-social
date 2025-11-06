@@ -59,19 +59,24 @@ const Index = () => {
 
   const loadPosts = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: postsData, error: postsError } = await supabase
         .from("posts")
-        .select(`
-          *,
-          profiles!posts_user_id_fkey (username)
-        `)
+        .select("*")
         .order("created_at", { ascending: false });
 
-      if (error) throw error;
+      if (postsError) throw postsError;
 
-      const formattedPosts: Post[] = data.map((post) => ({
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("user_id, username");
+
+      if (profilesError) throw profilesError;
+
+      const profilesMap = new Map(profilesData.map(p => [p.user_id, p.username]));
+
+      const formattedPosts: Post[] = postsData.map((post) => ({
         id: post.id,
-        author: post.profiles?.username || "Anonymous",
+        author: profilesMap.get(post.user_id) || "Anonymous",
         authorAddress: post.user_id,
         content: post.content,
         mediaUrl: post.media_url,

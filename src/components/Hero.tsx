@@ -1,9 +1,9 @@
-import { WalletConnect } from "./WalletConnect";
+import { Button } from "@/components/ui/button";
 import { Shield, Coins, Share2 } from "lucide-react";
 import heroImage from "@/assets/hero-bg.jpg";
 
 interface HeroProps {
-  onWalletConnect: (address: string) => void;
+  onWalletConnect: () => void;
   isConnected: boolean;
 }
 
@@ -34,7 +34,9 @@ export const Hero = ({ onWalletConnect, isConnected }: HeroProps) => {
             The decentralized social platform where you own your content, earn from engagement, and connect without censorship
           </p>
           
-          <WalletConnect onConnect={onWalletConnect} />
+          <Button onClick={onWalletConnect} size="lg" className="mt-8">
+            Get Started
+          </Button>
         </div>
 
         {/* Features Grid */}

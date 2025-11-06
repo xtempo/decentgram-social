@@ -1,4 +1,5 @@
-import { Coins, User } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Coins, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface HeaderProps {
@@ -26,14 +27,25 @@ export const Header = ({ walletAddress, tokenBalance, onDisconnect }: HeaderProp
               <span className="text-sm text-muted-foreground">$GRAM</span>
             </div>
 
+            <Link to="/profile">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <User className="h-4 w-4" />
+                Profile
+              </Button>
+            </Link>
+
             <Button
               variant="outline"
               size="sm"
               onClick={onDisconnect}
               className="gap-2"
             >
-              <User className="h-4 w-4" />
-              {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+              <LogOut className="h-4 w-4" />
+              Logout
             </Button>
           </div>
         )}
