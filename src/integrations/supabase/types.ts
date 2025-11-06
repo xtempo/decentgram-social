@@ -56,6 +56,7 @@ export type Database = {
           bio: string | null
           created_at: string | null
           id: string
+          token_balance: number
           user_id: string
           username: string
         }
@@ -64,6 +65,7 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           id?: string
+          token_balance?: number
           user_id: string
           username: string
         }
@@ -72,6 +74,7 @@ export type Database = {
           bio?: string | null
           created_at?: string | null
           id?: string
+          token_balance?: number
           user_id?: string
           username?: string
         }

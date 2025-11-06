@@ -1,99 +1,196 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 import { Header } from "@/components/Header";
 import { Hero } from "@/components/Hero";
 import { Feed } from "@/components/Feed";
 import { Post } from "@/components/PostCard";
+import { toast } from "sonner";
 
 const Index = () => {
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [tokenBalance, setTokenBalance] = useState(1000);
-  const [posts, setPosts] = useState<Post[]>([
-    {
-      id: "1",
-      author: "CryptoCreator",
-      authorAddress: "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
-      content: "Just minted my first NFT collection on DecentGram! The future of social media is decentralized 🚀",
-      timestamp: Date.now() - 3600000,
-      likes: 42,
-      comments: 8,
-      shares: 12,
-      tokenReward: 50,
-    },
-    {
-      id: "2",
-      author: "Web3Builder",
-      authorAddress: "0x8Ba1f109551bD432803012645Ac136ddd64DBA72",
-      content: "Building in Web3 hits different. No gatekeepers, no censorship, just pure innovation. WAGMI! 💎",
-      timestamp: Date.now() - 7200000,
-      likes: 128,
-      comments: 23,
-      shares: 45,
-      tokenReward: 75,
-    },
-    {
-      id: "3",
-      author: "DeFiEnthusiast",
-      authorAddress: "0x1aD91ee08f21bE3dE0BA2ba6918E714dA6B45836",
-      content: "DecentGram's tokenomics are genius. Earn $GRAM for quality content and engagement. This is how social media should work!",
-      timestamp: Date.now() - 10800000,
-      likes: 89,
-      comments: 15,
-      shares: 28,
-      tokenReward: 60,
-    },
-  ]);
+  const [user, setUser] = useState<any>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
-  const handleWalletConnect = (address: string) => {
-    setWalletAddress(address);
+  useEffect(() => {
+    checkAuth();
+    loadPosts();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN') {
+        setUser(session?.user);
+        if (session?.user) {
+          loadProfile(session.user.id);
+        }
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setProfile(null);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const checkAuth = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setUser(session?.user || null);
+    if (session?.user) {
+      loadProfile(session.user.id);
+    }
+    setLoading(false);
   };
 
-  const handleDisconnect = () => {
-    setWalletAddress(null);
+  const loadProfile = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("user_id", userId)
+        .single();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error: any) {
+      console.error("Error loading profile:", error);
+    }
   };
 
-  const handleLike = (postId: string) => {
-    setPosts(posts.map(post => 
-      post.id === postId 
-        ? { ...post, likes: post.likes + 1 }
-        : post
-    ));
+  const loadPosts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .select(`
+          *,
+          profiles!posts_user_id_fkey (username)
+        `)
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      const formattedPosts: Post[] = data.map((post) => ({
+        id: post.id,
+        author: post.profiles?.username || "Anonymous",
+        authorAddress: post.user_id,
+        content: post.content,
+        mediaUrl: post.media_url,
+        mediaType: post.media_type as 'image' | 'video' | undefined,
+        timestamp: new Date(post.created_at).getTime(),
+        likes: post.likes,
+        comments: 0,
+        shares: post.shares,
+        tokenReward: 25,
+      }));
+
+      setPosts(formattedPosts);
+    } catch (error: any) {
+      console.error("Error loading posts:", error);
+    }
   };
 
-  const handlePost = (content: string, mediaUrl?: string, mediaType?: 'image' | 'video') => {
-    const newPost: Post = {
-      id: Date.now().toString(),
-      author: "You",
-      authorAddress: walletAddress || "0x...",
-      content,
-      mediaUrl,
-      mediaType,
-      timestamp: Date.now(),
-      likes: 0,
-      comments: 0,
-      shares: 0,
-      tokenReward: 25,
-    };
-    setPosts([newPost, ...posts]);
+  const handleWalletConnect = () => {
+    navigate("/auth");
   };
 
-  const handleEarn = (amount: number) => {
-    setTokenBalance(prev => prev + amount);
+  const handleDisconnect = async () => {
+    await supabase.auth.signOut();
+  };
+
+  const handleLike = async (postId: string) => {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+
+    try {
+      const { error } = await supabase
+        .from("posts")
+        .update({ likes: post.likes + 1 })
+        .eq("id", postId);
+
+      if (error) throw error;
+
+      setPosts(posts.map(p => 
+        p.id === postId ? { ...p, likes: p.likes + 1 } : p
+      ));
+
+      if (user) {
+        handleEarn(5);
+      }
+    } catch (error: any) {
+      toast.error("Error liking post");
+    }
+  };
+
+  const handlePost = async (content: string, mediaUrl?: string, mediaType?: 'image' | 'video') => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("posts")
+        .insert({
+          user_id: user.id,
+          content,
+          media_url: mediaUrl,
+          media_type: mediaType,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newPost: Post = {
+        id: data.id,
+        author: profile?.username || "You",
+        authorAddress: user.id,
+        content: data.content,
+        mediaUrl: data.media_url,
+        mediaType: data.media_type as 'image' | 'video' | undefined,
+        timestamp: new Date(data.created_at).getTime(),
+        likes: data.likes,
+        comments: 0,
+        shares: data.shares,
+        tokenReward: 25,
+      };
+
+      setPosts([newPost, ...posts]);
+      handleEarn(25);
+      toast.success("Post created! Earned 25 $GRAM");
+    } catch (error: any) {
+      toast.error("Error creating post");
+    }
+  };
+
+  const handleEarn = async (amount: number) => {
+    if (!user || !profile) return;
+
+    try {
+      const newBalance = profile.token_balance + amount;
+      const { error } = await supabase
+        .from("profiles")
+        .update({ token_balance: newBalance })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      setProfile({ ...profile, token_balance: newBalance });
+    } catch (error: any) {
+      console.error("Error updating token balance:", error);
+    }
   };
 
   return (
     <div className="min-h-screen bg-gradient-bg">
       <Header 
-        walletAddress={walletAddress}
-        tokenBalance={tokenBalance}
+        walletAddress={user?.id}
+        tokenBalance={profile?.token_balance || 0}
         onDisconnect={handleDisconnect}
       />
       
       <Hero 
         onWalletConnect={handleWalletConnect}
-        isConnected={!!walletAddress}
+        isConnected={!!user}
       />
 
-      {walletAddress && (
+      {user && (
         <div className="container">
           <Feed 
             posts={posts}
