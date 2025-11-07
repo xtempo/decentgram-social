@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useState } from "react";
 import { toast } from "sonner";
+import { CommentSection } from "@/components/CommentSection";
+import { ShareDialog } from "@/components/ShareDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 export interface Post {
   id: string;
@@ -27,6 +30,9 @@ interface PostCardProps {
 
 export const PostCard = ({ post, onLike, onEarn }: PostCardProps) => {
   const [isLiked, setIsLiked] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
+  const [shareCount, setShareCount] = useState(post.shares);
 
   const handleLike = () => {
     if (!isLiked) {
@@ -39,26 +45,24 @@ export const PostCard = ({ post, onLike, onEarn }: PostCardProps) => {
     }
   };
 
-  const handleShare = () => {
-    const shareText = `${post.content}\n\nShared from DecentGram`;
+  const handleShare = async () => {
+    setShowShareDialog(true);
     
-    if (navigator.share && (post.mediaUrl || post.image)) {
-      // Web Share API with media
-      navigator.share({
-        title: 'DecentGram Post',
-        text: shareText,
-        url: post.mediaUrl || post.image
-      }).catch(() => {
-        // Fallback if share fails
-        navigator.clipboard.writeText(`${shareText}\n${post.mediaUrl || post.image || ''}`);
-        toast.success("Link copied!", {
-          description: "Post link copied to clipboard"
+    // Increment share count in database
+    try {
+      const { error } = await supabase
+        .from('posts')
+        .update({ shares: shareCount + 1 })
+        .eq('id', post.id);
+
+      if (!error) {
+        setShareCount(prev => prev + 1);
+        toast.success("Post shared!", {
+          description: "Share count updated"
         });
-      });
-    } else {
-      toast.success("Post shared!", {
-        description: "Your network will see this post"
-      });
+      }
+    } catch (error) {
+      console.error("Error updating shares:", error);
     }
   };
 
@@ -73,6 +77,7 @@ export const PostCard = ({ post, onLike, onEarn }: PostCardProps) => {
   };
 
   return (
+    <>
     <Card className="overflow-hidden hover:shadow-glow-primary/20 transition-all duration-300">
       {/* Header */}
       <div className="p-4 flex items-center justify-between">
@@ -126,17 +131,34 @@ export const PostCard = ({ post, onLike, onEarn }: PostCardProps) => {
             <span>{post.likes + (isLiked ? 1 : 0)}</span>
           </Button>
 
-          <Button variant="ghost" size="sm" className="gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            className="gap-2"
+            onClick={() => setShowComments(!showComments)}
+          >
             <MessageCircle className="h-5 w-5" />
             <span>{post.comments}</span>
           </Button>
 
           <Button variant="ghost" size="sm" onClick={handleShare} className="gap-2">
             <Share2 className="h-5 w-5" />
-            <span>{post.shares}</span>
+            <span>{shareCount}</span>
           </Button>
         </div>
       </div>
+
+      {/* Comments Section */}
+      {showComments && <CommentSection postId={post.id} />}
     </Card>
+
+    {/* Share Dialog */}
+    <ShareDialog
+      open={showShareDialog}
+      onOpenChange={setShowShareDialog}
+      postId={post.id}
+      content={post.content}
+    />
+    </>
   );
 };
