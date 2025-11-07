@@ -6,6 +6,7 @@ import { Image, Send, Video, X } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { processMedia } from "@/utils/mediaProcessor";
+import { ImageEditor } from "@/components/ImageEditor";
 
 interface CreatePostProps {
   onPost: (content: string, mediaUrl?: string, mediaType?: 'image' | 'video') => void;
@@ -17,6 +18,8 @@ export const CreatePost = ({ onPost }: CreatePostProps) => {
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>("");
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedImageBlob, setEditedImageBlob] = useState<Blob | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleMediaSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,12 +37,31 @@ export const CreatePost = ({ onPost }: CreatePostProps) => {
     setMediaFile(file);
     setMediaType(isImage ? 'image' : 'video');
     setMediaPreview(URL.createObjectURL(file));
+    
+    // Open editor for images
+    if (isImage) {
+      setIsEditing(true);
+    }
+  };
+
+  const handleEditorSave = (editedBlob: Blob) => {
+    setEditedImageBlob(editedBlob);
+    setMediaPreview(URL.createObjectURL(editedBlob));
+    setIsEditing(false);
+    toast.success("Image edited successfully!");
+  };
+
+  const handleEditorCancel = () => {
+    setIsEditing(false);
+    handleRemoveMedia();
   };
 
   const handleRemoveMedia = () => {
     setMediaFile(null);
     setMediaPreview("");
     setMediaType(null);
+    setEditedImageBlob(null);
+    setIsEditing(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -64,9 +86,13 @@ export const CreatePost = ({ onPost }: CreatePostProps) => {
           return;
         }
 
-        // Process media to remove metadata and preserve quality
+        // Use edited image if available, otherwise process original
         toast.info("Processing media...");
-        const { blob, fileName } = await processMedia(mediaFile, mediaType);
+        const fileToProcess = editedImageBlob && mediaType === 'image' 
+          ? new File([editedImageBlob], mediaFile.name, { type: mediaFile.type })
+          : mediaFile;
+        
+        const { blob, fileName } = await processMedia(fileToProcess, mediaType);
         
         const filePath = `${user.id}/${fileName}`;
         
@@ -101,6 +127,16 @@ export const CreatePost = ({ onPost }: CreatePostProps) => {
       setIsPosting(false);
     }
   };
+
+  if (isEditing && mediaPreview && mediaType === 'image') {
+    return (
+      <ImageEditor
+        imageSrc={mediaPreview}
+        onSave={handleEditorSave}
+        onCancel={handleEditorCancel}
+      />
+    );
+  }
 
   return (
     <Card className="p-4">
