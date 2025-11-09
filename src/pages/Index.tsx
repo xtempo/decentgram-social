@@ -104,7 +104,7 @@ const Index = () => {
 
   const handleLike = async (postId: string) => {
     const post = posts.find(p => p.id === postId);
-    if (!post) return;
+    if (!post || !user) return;
 
     try {
       const { error } = await supabase
@@ -118,10 +118,29 @@ const Index = () => {
         p.id === postId ? { ...p, likes: p.likes + 1 } : p
       ));
 
-      if (user) {
-        handleEarn(5);
+      // Create notification for post owner (if not liking own post)
+      if (post.authorAddress !== user.id) {
+        const { data: postData } = await supabase
+          .from("posts")
+          .select("user_id")
+          .eq("id", postId)
+          .single();
+
+        if (postData) {
+          await supabase
+            .from("notifications")
+            .insert({
+              user_id: postData.user_id,
+              actor_id: user.id,
+              post_id: postId,
+              type: 'like'
+            });
+        }
       }
+
+      handleEarn(5);
     } catch (error: any) {
+      console.error("Error liking post:", error);
       toast.error("Error liking post");
     }
   };

@@ -110,6 +110,26 @@ export const CommentSection = ({ postId }: CommentSectionProps) => {
 
       if (error) throw error;
 
+      // Get post owner to send notification
+      const { data: postData } = await supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+
+      // Create notification for post owner (if not commenting on own post)
+      if (postData && postData.user_id !== user.id) {
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: postData.user_id,
+            actor_id: user.id,
+            post_id: postId,
+            type: 'comment',
+            content: newComment.slice(0, 100)
+          });
+      }
+
       setNewComment("");
       toast.success("Comment added!");
     } catch (error) {

@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Coins, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 
 interface HeaderProps {
   walletAddress: string | null;
@@ -26,6 +27,8 @@ export const Header = ({ walletAddress, tokenBalance, onDisconnect }: HeaderProp
               <span className="font-semibold text-accent">{tokenBalance.toLocaleString()}</span>
               <span className="text-sm text-muted-foreground">$GRAM</span>
             </div>
+
+            <NotificationsDropdown />
 
             <Link to="/profile">
               <Button
