@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Coins, User, LogOut } from "lucide-react";
+import { Coins, User, LogOut, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 
@@ -29,6 +29,17 @@ export const Header = ({ walletAddress, tokenBalance, onDisconnect }: HeaderProp
             </div>
 
             <NotificationsDropdown />
+
+            <Link to="/messages">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <MessageSquare className="h-4 w-4" />
+                Messages
+              </Button>
+            </Link>
 
             <Link to="/profile">
               <Button
