@@ -6,12 +6,15 @@ import { Hero } from "@/components/Hero";
 import { Feed } from "@/components/Feed";
 import { Post } from "@/components/PostCard";
 import { toast } from "sonner";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const Index = () => {
   const [user, setUser] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
   const [posts, setPosts] = useState<Post[]>([]);
+  const [followingPosts, setFollowingPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
+  const [feedTab, setFeedTab] = useState<"all" | "following">("all");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,10 +26,12 @@ const Index = () => {
         setUser(session?.user);
         if (session?.user) {
           loadProfile(session.user.id);
+          loadFollowingPosts(session.user.id);
         }
       } else if (event === 'SIGNED_OUT') {
         setUser(null);
         setProfile(null);
+        setFollowingPosts([]);
       }
     });
 
@@ -38,6 +43,7 @@ const Index = () => {
     setUser(session?.user || null);
     if (session?.user) {
       loadProfile(session.user.id);
+      loadFollowingPosts(session.user.id);
     }
     setLoading(false);
   };
@@ -91,6 +97,60 @@ const Index = () => {
       setPosts(formattedPosts);
     } catch (error: any) {
       console.error("Error loading posts:", error);
+    }
+  };
+
+  const loadFollowingPosts = async (userId: string) => {
+    try {
+      // Get list of users the current user is following
+      const { data: followingData, error: followingError } = await supabase
+        .from("followers")
+        .select("following_id")
+        .eq("follower_id", userId);
+
+      if (followingError) throw followingError;
+
+      const followingIds = followingData.map(f => f.following_id);
+
+      if (followingIds.length === 0) {
+        setFollowingPosts([]);
+        return;
+      }
+
+      // Get posts from followed users
+      const { data: postsData, error: postsError } = await supabase
+        .from("posts")
+        .select("*")
+        .in("user_id", followingIds)
+        .order("created_at", { ascending: false });
+
+      if (postsError) throw postsError;
+
+      const { data: profilesData, error: profilesError } = await supabase
+        .from("profiles")
+        .select("user_id, username");
+
+      if (profilesError) throw profilesError;
+
+      const profilesMap = new Map(profilesData.map(p => [p.user_id, p.username]));
+
+      const formattedPosts: Post[] = postsData.map((post) => ({
+        id: post.id,
+        author: profilesMap.get(post.user_id) || "Anonymous",
+        authorAddress: post.user_id,
+        content: post.content,
+        mediaUrl: post.media_url,
+        mediaType: post.media_type as 'image' | 'video' | undefined,
+        timestamp: new Date(post.created_at).getTime(),
+        likes: post.likes,
+        comments: 0,
+        shares: post.shares,
+        tokenReward: 25,
+      }));
+
+      setFollowingPosts(formattedPosts);
+    } catch (error: any) {
+      console.error("Error loading following posts:", error);
     }
   };
 
@@ -216,12 +276,37 @@ const Index = () => {
 
       {user && (
         <div className="container">
-          <Feed 
-            posts={posts}
-            onLike={handleLike}
-            onPost={handlePost}
-            onEarn={handleEarn}
-          />
+          <Tabs defaultValue="all" className="max-w-2xl mx-auto pt-8" onValueChange={(val) => setFeedTab(val as "all" | "following")}>
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="all">All Posts</TabsTrigger>
+              <TabsTrigger value="following">Following</TabsTrigger>
+            </TabsList>
+            <TabsContent value="all">
+              <Feed 
+                posts={posts}
+                onLike={handleLike}
+                onPost={handlePost}
+                onEarn={handleEarn}
+                currentUserId={user.id}
+              />
+            </TabsContent>
+            <TabsContent value="following">
+              {followingPosts.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <p className="text-lg mb-2">No posts from people you follow</p>
+                  <p className="text-sm">Follow users to see their posts here!</p>
+                </div>
+              ) : (
+                <Feed 
+                  posts={followingPosts}
+                  onLike={handleLike}
+                  onPost={handlePost}
+                  onEarn={handleEarn}
+                  currentUserId={user.id}
+                />
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
       )}
     </div>

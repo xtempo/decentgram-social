@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
+import { Loader2, Users } from "lucide-react";
 
 const Profile = () => {
   const [loading, setLoading] = useState(true);
@@ -190,9 +190,22 @@ const Profile = () => {
                 {saving ? "Saving..." : "Save Profile"}
               </Button>
 
-              <div className="pt-4 border-t border-white/10">
-                <div className="text-sm text-muted-foreground mb-1">Token Balance</div>
-                <div className="text-2xl font-bold text-primary">{profile?.token_balance || 0} $GRAM</div>
+              <div className="pt-4 border-t border-white/10 space-y-4">
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Token Balance</div>
+                  <div className="text-2xl font-bold text-primary">{profile?.token_balance || 0} $GRAM</div>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-3 rounded-lg bg-accent/10 border border-accent/20">
+                    <div className="text-2xl font-bold text-foreground">{profile?.followers_count || 0}</div>
+                    <div className="text-sm text-muted-foreground">Followers</div>
+                  </div>
+                  <div className="text-center p-3 rounded-lg bg-accent/10 border border-accent/20">
+                    <div className="text-2xl font-bold text-foreground">{profile?.following_count || 0}</div>
+                    <div className="text-sm text-muted-foreground">Following</div>
+                  </div>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -212,6 +225,7 @@ const Profile = () => {
                     post={post}
                     onLike={handleLike}
                     onEarn={() => {}}
+                    currentUserId={profile?.user_id}
                   />
                   <Button
                     variant="destructive"

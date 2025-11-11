@@ -49,6 +49,27 @@ export type Database = {
           },
         ]
       }
+      followers: {
+        Row: {
+          created_at: string
+          follower_id: string
+          following_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          follower_id: string
+          following_id: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          follower_id?: string
+          following_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           actor_id: string
@@ -139,6 +160,8 @@ export type Database = {
           avatar_url: string | null
           bio: string | null
           created_at: string | null
+          followers_count: number
+          following_count: number
           id: string
           token_balance: number
           user_id: string
@@ -148,6 +171,8 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string | null
+          followers_count?: number
+          following_count?: number
           id?: string
           token_balance?: number
           user_id: string
@@ -157,6 +182,8 @@ export type Database = {
           avatar_url?: string | null
           bio?: string | null
           created_at?: string | null
+          followers_count?: number
+          following_count?: number
           id?: string
           token_balance?: number
           user_id?: string

@@ -6,9 +6,10 @@ interface FeedProps {
   onLike: (postId: string) => void;
   onPost: (content: string, mediaUrl?: string, mediaType?: 'image' | 'video') => void;
   onEarn: (amount: number) => void;
+  currentUserId?: string;
 }
 
-export const Feed = ({ posts, onLike, onPost, onEarn }: FeedProps) => {
+export const Feed = ({ posts, onLike, onPost, onEarn, currentUserId }: FeedProps) => {
   return (
     <div className="max-w-2xl mx-auto py-8 space-y-6">
       <CreatePost onPost={onPost} />
@@ -20,6 +21,7 @@ export const Feed = ({ posts, onLike, onPost, onEarn }: FeedProps) => {
             post={post} 
             onLike={onLike}
             onEarn={onEarn}
+            currentUserId={currentUserId}
           />
         ))}
       </div>

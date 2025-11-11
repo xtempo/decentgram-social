@@ -1,10 +1,11 @@
 import { Heart, MessageCircle, Share2, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import { CommentSection } from "@/components/CommentSection";
 import { ShareDialog } from "@/components/ShareDialog";
+import { FollowButton } from "@/components/FollowButton";
 import { supabase } from "@/integrations/supabase/client";
 
 export interface Post {
@@ -26,9 +27,10 @@ interface PostCardProps {
   post: Post;
   onLike: (postId: string) => void;
   onEarn: (amount: number) => void;
+  currentUserId?: string;
 }
 
-export const PostCard = ({ post, onLike, onEarn }: PostCardProps) => {
+export const PostCard = ({ post, onLike, onEarn, currentUserId }: PostCardProps) => {
   const [isLiked, setIsLiked] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
@@ -90,9 +92,17 @@ export const PostCard = ({ post, onLike, onEarn }: PostCardProps) => {
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-accent/10 border border-accent/20">
-          <TrendingUp className="h-4 w-4 text-accent" />
-          <span className="text-sm font-semibold text-accent">+{post.tokenReward} $GRAM</span>
+        <div className="flex items-center gap-2">
+          <FollowButton 
+            targetUserId={post.authorAddress} 
+            currentUserId={currentUserId}
+            variant="outline"
+            size="sm"
+          />
+          <div className="flex items-center gap-1 px-3 py-1 rounded-full bg-accent/10 border border-accent/20">
+            <TrendingUp className="h-4 w-4 text-accent" />
+            <span className="text-sm font-semibold text-accent">+{post.tokenReward} $GRAM</span>
+          </div>
         </div>
       </div>
 
