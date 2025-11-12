@@ -4,8 +4,9 @@ import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Send, Users, Lock } from "lucide-react";
+import { Send, Users, Lock, Paperclip, X } from "lucide-react";
 import { toast } from "sonner";
+import { processMedia } from "@/utils/mediaProcessor";
 import { formatDistanceToNow } from "date-fns";
 
 interface Message {
@@ -14,6 +15,8 @@ interface Message {
   content: string;
   created_at: string;
   username?: string;
+  media_url?: string;
+  media_type?: string;
 }
 
 interface ChatWindowProps {
@@ -26,7 +29,10 @@ export const ChatWindow = ({ conversationId, userId }: ChatWindowProps) => {
   const [newMessage, setNewMessage] = useState("");
   const [conversation, setConversation] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadConversation();
@@ -121,24 +127,97 @@ export const ChatWindow = ({ conversationId, userId }: ChatWindowProps) => {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file size (max 20MB)
+      if (file.size > 20 * 1024 * 1024) {
+        toast.error("File size must be less than 20MB");
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const uploadFile = async (file: File) => {
+    try {
+      const fileType = file.type.startsWith('image/') ? 'image' : 
+                      file.type.startsWith('video/') ? 'video' : 'file';
+      
+      let fileToUpload = file;
+      let fileName = file.name;
+
+      // Process media to remove metadata
+      if (fileType === 'image' || fileType === 'video') {
+        const processed = await processMedia(file, fileType);
+        fileToUpload = new File([processed.blob], processed.fileName, { type: file.type });
+        fileName = processed.fileName;
+      } else {
+        fileName = `${Date.now()}-${file.name}`;
+      }
+
+      const filePath = `chat/${userId}/${fileName}`;
+
+      const { error: uploadError, data } = await supabase.storage
+        .from("media")
+        .upload(filePath, fileToUpload);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from("media")
+        .getPublicUrl(filePath);
+
+      return { url: publicUrl, type: fileType };
+    } catch (error) {
+      console.error("Error uploading file:", error);
+      throw error;
+    }
+  };
+
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() && !selectedFile) return;
 
+    setUploading(true);
     try {
+      let mediaUrl = null;
+      let mediaType = null;
+
+      if (selectedFile) {
+        const uploadResult = await uploadFile(selectedFile);
+        mediaUrl = uploadResult.url;
+        mediaType = uploadResult.type;
+      }
+
       const { error } = await supabase
         .from("messages")
         .insert({
           conversation_id: conversationId,
           user_id: userId,
-          content: newMessage.trim(),
+          content: newMessage.trim() || "",
+          media_url: mediaUrl,
+          media_type: mediaType,
         });
 
       if (error) throw error;
       setNewMessage("");
+      setSelectedFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (error: any) {
       console.error("Error sending message:", error);
       toast.error("Failed to send message");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -192,7 +271,41 @@ export const ChatWindow = ({ conversationId, userId }: ChatWindowProps) => {
                           {message.username || 'User'}
                         </p>
                       )}
-                      <p className="text-sm break-words">{message.content}</p>
+                      
+                      {message.media_url && (
+                        <div className="mb-2">
+                          {message.media_type === 'image' && (
+                            <img 
+                              src={message.media_url} 
+                              alt="Shared image" 
+                              className="max-w-full max-h-64 rounded object-cover"
+                            />
+                          )}
+                          {message.media_type === 'video' && (
+                            <video 
+                              src={message.media_url} 
+                              controls 
+                              className="max-w-full max-h-64 rounded"
+                            />
+                          )}
+                          {message.media_type === 'file' && (
+                            <a 
+                              href={message.media_url} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 text-sm underline hover:no-underline"
+                            >
+                              <Paperclip className="h-4 w-4" />
+                              Download File
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      
+                      {message.content && (
+                        <p className="text-sm break-words">{message.content}</p>
+                      )}
+                      
                       <p className={`text-xs mt-1 ${isOwnMessage ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {formatDistanceToNow(new Date(message.created_at), { addSuffix: true })}
                       </p>
@@ -205,14 +318,49 @@ export const ChatWindow = ({ conversationId, userId }: ChatWindowProps) => {
         </ScrollArea>
 
         <form onSubmit={handleSendMessage} className="p-4 border-t border-white/10">
+          {selectedFile && (
+            <div className="mb-2 p-2 bg-accent/10 rounded flex items-center justify-between">
+              <span className="text-sm truncate flex-1">{selectedFile.name}</span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                onClick={handleRemoveFile}
+                className="h-6 w-6"
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
           <div className="flex gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              onChange={handleFileSelect}
+              className="hidden"
+              accept="image/*,video/*,application/pdf,.doc,.docx,.txt"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+            >
+              <Paperclip className="h-4 w-4" />
+            </Button>
             <Input
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               placeholder="Type a message..."
               className="flex-1"
+              disabled={uploading}
             />
-            <Button type="submit" size="icon" disabled={!newMessage.trim()}>
+            <Button 
+              type="submit" 
+              size="icon" 
+              disabled={(!newMessage.trim() && !selectedFile) || uploading}
+            >
               <Send className="h-4 w-4" />
             </Button>
           </div>
