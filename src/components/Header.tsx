@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Coins, User, LogOut, MessageSquare } from "lucide-react";
+import { Coins, User, LogOut, MessageSquare, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationsDropdown } from "@/components/NotificationsDropdown";
 
@@ -15,18 +15,33 @@ export const Header = ({ walletAddress, tokenBalance, onDisconnect }: HeaderProp
       <div className="container flex h-16 items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="h-8 w-8 rounded-lg bg-gradient-primary" />
-          <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-            DecentGram
-          </h1>
+          <Link to="/">
+            <h1 className="text-2xl font-bold bg-gradient-primary bg-clip-text text-transparent">
+              DecentGram
+            </h1>
+          </Link>
         </div>
 
         {walletAddress && (
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2">
-              <Coins className="h-5 w-5 text-accent" />
-              <span className="font-semibold text-accent">{tokenBalance.toLocaleString()}</span>
-              <span className="text-sm text-muted-foreground">$GRAM</span>
-            </div>
+            <Link to="/tokens">
+              <div className="flex items-center gap-2 rounded-lg bg-secondary px-4 py-2 hover:bg-secondary/80 transition-colors cursor-pointer">
+                <Coins className="h-5 w-5 text-accent" />
+                <span className="font-semibold text-accent">{tokenBalance.toLocaleString()}</span>
+                <span className="text-sm text-muted-foreground">$GRAM</span>
+              </div>
+            </Link>
+
+            <Link to="/tokens">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <TrendingUp className="h-4 w-4" />
+                Tokens
+              </Button>
+            </Link>
 
             <NotificationsDropdown />
 
