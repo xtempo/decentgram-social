@@ -288,6 +288,124 @@ export type Database = {
         }
         Relationships: []
       }
+      token_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          price_per_token: number
+          token_id: string | null
+          total_cost: number
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          price_per_token: number
+          token_id?: string | null
+          total_cost: number
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          price_per_token?: number
+          token_id?: string | null
+          total_cost?: number
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "token_transactions_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tokens: {
+        Row: {
+          circulating_supply: number
+          created_at: string
+          creator_id: string
+          description: string | null
+          id: string
+          logo_url: string | null
+          name: string
+          price_per_token: number
+          symbol: string
+          total_supply: number
+          updated_at: string
+        }
+        Insert: {
+          circulating_supply?: number
+          created_at?: string
+          creator_id: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name: string
+          price_per_token?: number
+          symbol: string
+          total_supply?: number
+          updated_at?: string
+        }
+        Update: {
+          circulating_supply?: number
+          created_at?: string
+          creator_id?: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          name?: string
+          price_per_token?: number
+          symbol?: string
+          total_supply?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      user_tokens: {
+        Row: {
+          balance: number
+          created_at: string
+          id: string
+          token_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance?: number
+          created_at?: string
+          id?: string
+          token_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance?: number
+          created_at?: string
+          id?: string
+          token_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_tokens_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
