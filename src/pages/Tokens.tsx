@@ -5,9 +5,10 @@ import { Header } from "@/components/Header";
 import { TokenMarketplace } from "@/components/tokens/TokenMarketplace";
 import { CreateTokenDialog } from "@/components/tokens/CreateTokenDialog";
 import { MyTokens } from "@/components/tokens/MyTokens";
+import { CryptoMarket } from "@/components/tokens/CryptoMarket";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Coins, Wallet, TrendingUp } from "lucide-react";
+import { Plus, Coins, Wallet, TrendingUp, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
 
 const Tokens = () => {
@@ -82,8 +83,12 @@ const Tokens = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="marketplace" className="space-y-6">
-          <TabsList className="grid w-full max-w-md grid-cols-3">
+        <Tabs defaultValue="crypto" className="space-y-6">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+            <TabsTrigger value="crypto" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Crypto
+            </TabsTrigger>
             <TabsTrigger value="marketplace" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
               Marketplace
@@ -97,6 +102,10 @@ const Tokens = () => {
               $GRAM
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="crypto">
+            <CryptoMarket />
+          </TabsContent>
 
           <TabsContent value="marketplace">
             <TokenMarketplace userId={user.id} gramBalance={profile?.token_balance || 0} onBalanceChange={(newBalance) => setProfile({ ...profile, token_balance: newBalance })} />
