@@ -5,9 +5,10 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { TrendingUp, TrendingDown, RefreshCw, Bitcoin, Wallet } from "lucide-react";
+import { TrendingUp, TrendingDown, RefreshCw, Bitcoin, Wallet, Target } from "lucide-react";
 import { CryptoChart } from "./CryptoChart";
 import { CryptoPortfolio } from "./CryptoPortfolio";
+import { LimitOrders } from "./LimitOrders";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -57,6 +58,7 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
   const [tradeAmount, setTradeAmount] = useState("");
   const [processing, setProcessing] = useState(false);
   const [showPortfolio, setShowPortfolio] = useState(false);
+  const [showLimitOrders, setShowLimitOrders] = useState(false);
   const [portfolioKey, setPortfolioKey] = useState(0);
 
   const fetchCryptoData = async () => {
@@ -324,14 +326,24 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
         </div>
         <div className="flex items-center gap-2">
           {userId && (
-            <Button 
-              variant={showPortfolio ? "default" : "outline"}
-              size="sm"
-              onClick={() => setShowPortfolio(!showPortfolio)}
-            >
-              <Wallet className="h-4 w-4 mr-2" />
-              Portfolio
-            </Button>
+            <>
+              <Button 
+                variant={showPortfolio ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setShowPortfolio(!showPortfolio); setShowLimitOrders(false); }}
+              >
+                <Wallet className="h-4 w-4 mr-2" />
+                Portfolio
+              </Button>
+              <Button 
+                variant={showLimitOrders ? "default" : "outline"}
+                size="sm"
+                onClick={() => { setShowLimitOrders(!showLimitOrders); setShowPortfolio(false); }}
+              >
+                <Target className="h-4 w-4 mr-2" />
+                Limit Orders
+              </Button>
+            </>
           )}
           <Button 
             variant="outline" 
@@ -352,6 +364,17 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
           userId={userId}
           cryptoPrices={cryptos.map(c => ({ id: c.id, current_price: c.current_price, image: c.image }))}
           onRefresh={() => setPortfolioKey(prev => prev + 1)}
+        />
+      )}
+
+      {/* Limit Orders Section */}
+      {showLimitOrders && userId && (
+        <LimitOrders
+          userId={userId}
+          cryptoPrices={cryptos.map(c => ({ id: c.id, current_price: c.current_price, image: c.image, name: c.name, symbol: c.symbol }))}
+          gramBalance={gramBalance}
+          onBalanceChange={onBalanceChange}
+          onOrderExecuted={() => setPortfolioKey(prev => prev + 1)}
         />
       )}
 

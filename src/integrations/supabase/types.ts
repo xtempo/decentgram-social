@@ -481,6 +481,51 @@ export type Database = {
         }
         Relationships: []
       }
+      virtual_limit_orders: {
+        Row: {
+          amount: number
+          created_at: string
+          crypto_id: string
+          crypto_name: string
+          crypto_symbol: string
+          executed_at: string | null
+          id: string
+          order_type: string
+          status: string
+          target_price: number
+          total_cost: number
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          crypto_id: string
+          crypto_name: string
+          crypto_symbol: string
+          executed_at?: string | null
+          id?: string
+          order_type: string
+          status?: string
+          target_price: number
+          total_cost: number
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          crypto_id?: string
+          crypto_name?: string
+          crypto_symbol?: string
+          executed_at?: string | null
+          id?: string
+          order_type?: string
+          status?: string
+          target_price?: number
+          total_cost?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
