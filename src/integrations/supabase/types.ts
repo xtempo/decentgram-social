@@ -406,6 +406,81 @@ export type Database = {
           },
         ]
       }
+      virtual_crypto_holdings: {
+        Row: {
+          amount: number
+          avg_buy_price: number
+          created_at: string
+          crypto_id: string
+          crypto_name: string
+          crypto_symbol: string
+          id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount?: number
+          avg_buy_price?: number
+          created_at?: string
+          crypto_id: string
+          crypto_name: string
+          crypto_symbol: string
+          id?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          avg_buy_price?: number
+          created_at?: string
+          crypto_id?: string
+          crypto_name?: string
+          crypto_symbol?: string
+          id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      virtual_crypto_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          crypto_id: string
+          crypto_name: string
+          crypto_symbol: string
+          id: string
+          price_per_unit: number
+          total_cost: number
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          crypto_id: string
+          crypto_name: string
+          crypto_symbol: string
+          id?: string
+          price_per_unit: number
+          total_cost: number
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          crypto_id?: string
+          crypto_name?: string
+          crypto_symbol?: string
+          id?: string
+          price_per_unit?: number
+          total_cost?: number
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
