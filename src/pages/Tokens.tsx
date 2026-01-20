@@ -104,7 +104,11 @@ const Tokens = () => {
           </TabsList>
 
           <TabsContent value="crypto">
-            <CryptoMarket />
+            <CryptoMarket 
+              userId={user.id} 
+              gramBalance={profile?.token_balance || 0} 
+              onBalanceChange={(newBalance) => setProfile({ ...profile, token_balance: newBalance })} 
+            />
           </TabsContent>
 
           <TabsContent value="marketplace">
