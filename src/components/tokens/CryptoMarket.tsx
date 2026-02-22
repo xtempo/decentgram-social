@@ -3,12 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+
 import { TrendingUp, TrendingDown, RefreshCw, Bitcoin, Wallet, Target } from "lucide-react";
 import { CryptoChart } from "./CryptoChart";
 import { CryptoPortfolio } from "./CryptoPortfolio";
 import { LimitOrders } from "./LimitOrders";
+import { AdvancedTradeDialog, type TradeParams } from "./AdvancedTradeDialog";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -55,7 +55,7 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
   const [error, setError] = useState<string | null>(null);
   const [showTradeDialog, setShowTradeDialog] = useState(false);
   const [tradeType, setTradeType] = useState<"buy" | "sell">("buy");
-  const [tradeAmount, setTradeAmount] = useState("");
+  
   const [processing, setProcessing] = useState(false);
   const [showPortfolio, setShowPortfolio] = useState(false);
   const [showLimitOrders, setShowLimitOrders] = useState(false);
@@ -117,6 +117,10 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
     return `$${vol.toLocaleString()}`;
   };
 
+  const calculateGramCost = (usdAmount: number) => {
+    return Math.ceil(usdAmount / GRAM_TO_USD_RATE);
+  };
+
   const openTradeDialog = (type: "buy" | "sell", crypto: CryptoData) => {
     if (!userId) {
       toast.error("Please log in to trade");
@@ -124,38 +128,54 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
     }
     setSelectedCrypto(crypto);
     setTradeType(type);
-    setTradeAmount("");
     setShowTradeDialog(true);
   };
 
-  const calculateGramCost = (usdAmount: number) => {
-    return Math.ceil(usdAmount / GRAM_TO_USD_RATE);
-  };
-
-  const handleTrade = async () => {
-    if (!selectedCrypto || !userId || !tradeAmount) return;
-
-    const amount = parseFloat(tradeAmount);
-    if (isNaN(amount) || amount <= 0) {
-      toast.error("Please enter a valid amount");
-      return;
-    }
-
-    const totalUsd = amount * selectedCrypto.current_price;
-    const gramCost = calculateGramCost(totalUsd);
+  const handleAdvancedTrade = async (params: TradeParams) => {
+    if (!selectedCrypto || !userId) return;
 
     setProcessing(true);
-
     try {
+      if (params.orderType !== "market") {
+        // Place as a limit order in the database
+        const targetPrice =
+          params.orderType === "limit" ? params.targetPrice! :
+          params.orderType === "stop_loss" ? params.stopLossPrice! :
+          params.takeProfitPrice!;
+
+        const orderType = params.orderType === "limit"
+          ? (tradeType === "buy" ? "limit_buy" : "limit_sell")
+          : params.orderType === "stop_loss" ? "stop_loss" : "take_profit";
+
+        await supabase.from("virtual_limit_orders").insert({
+          user_id: userId,
+          crypto_id: selectedCrypto.id,
+          crypto_symbol: selectedCrypto.symbol,
+          crypto_name: selectedCrypto.name,
+          order_type: orderType,
+          amount: params.amount,
+          target_price: targetPrice,
+          total_cost: params.amount * targetPrice,
+        });
+
+        toast.success(`${orderType.replace("_", " ")} order placed for ${params.amount} ${selectedCrypto.symbol.toUpperCase()} at ${targetPrice.toLocaleString("en-US", { style: "currency", currency: "USD" })}`);
+        setShowTradeDialog(false);
+        setProcessing(false);
+        return;
+      }
+
+      // Market order execution (existing logic)
+      const amount = params.amount;
+      const totalUsd = amount * selectedCrypto.current_price;
+      const gramCost = calculateGramCost(totalUsd);
+
       if (tradeType === "buy") {
-        // Check if user has enough $GRAM
         if (gramCost > gramBalance) {
           toast.error(`Insufficient $GRAM balance. Need ${gramCost} $GRAM`);
           setProcessing(false);
           return;
         }
 
-        // Get existing holding
         const { data: existingHolding } = await supabase
           .from("virtual_crypto_holdings")
           .select("*")
@@ -164,64 +184,49 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
           .maybeSingle();
 
         if (existingHolding) {
-          // Update existing holding with new average price
           const existingAmount = Number(existingHolding.amount);
           const existingAvgPrice = Number(existingHolding.avg_buy_price);
           const newTotalAmount = existingAmount + amount;
           const newAvgPrice = ((existingAmount * existingAvgPrice) + (amount * selectedCrypto.current_price)) / newTotalAmount;
-
-          await supabase
-            .from("virtual_crypto_holdings")
-            .update({
-              amount: newTotalAmount,
-              avg_buy_price: newAvgPrice
-            })
-            .eq("id", existingHolding.id);
+          await supabase.from("virtual_crypto_holdings").update({ amount: newTotalAmount, avg_buy_price: newAvgPrice }).eq("id", existingHolding.id);
         } else {
-          // Create new holding
-          await supabase
-            .from("virtual_crypto_holdings")
-            .insert({
-              user_id: userId,
-              crypto_id: selectedCrypto.id,
-              crypto_symbol: selectedCrypto.symbol,
-              crypto_name: selectedCrypto.name,
-              amount: amount,
-              avg_buy_price: selectedCrypto.current_price
-            });
+          await supabase.from("virtual_crypto_holdings").insert({
+            user_id: userId, crypto_id: selectedCrypto.id, crypto_symbol: selectedCrypto.symbol,
+            crypto_name: selectedCrypto.name, amount, avg_buy_price: selectedCrypto.current_price,
+          });
         }
 
-        // Record transaction
-        await supabase
-          .from("virtual_crypto_transactions")
-          .insert({
-            user_id: userId,
-            crypto_id: selectedCrypto.id,
-            crypto_symbol: selectedCrypto.symbol,
-            crypto_name: selectedCrypto.name,
-            transaction_type: "buy",
-            amount: amount,
-            price_per_unit: selectedCrypto.current_price,
-            total_cost: totalUsd
-          });
+        await supabase.from("virtual_crypto_transactions").insert({
+          user_id: userId, crypto_id: selectedCrypto.id, crypto_symbol: selectedCrypto.symbol,
+          crypto_name: selectedCrypto.name, transaction_type: "buy", amount,
+          price_per_unit: selectedCrypto.current_price, total_cost: totalUsd,
+        });
 
-        // Deduct $GRAM
         const newBalance = gramBalance - gramCost;
-        await supabase
-          .from("profiles")
-          .update({ token_balance: newBalance })
-          .eq("user_id", userId);
-
+        await supabase.from("profiles").update({ token_balance: newBalance }).eq("user_id", userId);
         onBalanceChange?.(newBalance);
+
+        // Place SL/TP companion orders if set
+        if (params.stopLossPrice) {
+          await supabase.from("virtual_limit_orders").insert({
+            user_id: userId, crypto_id: selectedCrypto.id, crypto_symbol: selectedCrypto.symbol,
+            crypto_name: selectedCrypto.name, order_type: "stop_loss", amount,
+            target_price: params.stopLossPrice, total_cost: amount * params.stopLossPrice,
+          });
+        }
+        if (params.takeProfitPrice) {
+          await supabase.from("virtual_limit_orders").insert({
+            user_id: userId, crypto_id: selectedCrypto.id, crypto_symbol: selectedCrypto.symbol,
+            crypto_name: selectedCrypto.name, order_type: "take_profit", amount,
+            target_price: params.takeProfitPrice, total_cost: amount * params.takeProfitPrice,
+          });
+        }
+
         toast.success(`Bought ${amount} ${selectedCrypto.symbol.toUpperCase()} for ${gramCost} $GRAM`);
       } else {
-        // Sell - check if user has enough crypto
         const { data: holding } = await supabase
-          .from("virtual_crypto_holdings")
-          .select("*")
-          .eq("user_id", userId)
-          .eq("crypto_id", selectedCrypto.id)
-          .maybeSingle();
+          .from("virtual_crypto_holdings").select("*")
+          .eq("user_id", userId).eq("crypto_id", selectedCrypto.id).maybeSingle();
 
         if (!holding || Number(holding.amount) < amount) {
           toast.error(`Insufficient ${selectedCrypto.symbol.toUpperCase()} balance`);
@@ -230,40 +235,20 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
         }
 
         const newAmount = Number(holding.amount) - amount;
-
         if (newAmount <= 0) {
-          await supabase
-            .from("virtual_crypto_holdings")
-            .delete()
-            .eq("id", holding.id);
+          await supabase.from("virtual_crypto_holdings").delete().eq("id", holding.id);
         } else {
-          await supabase
-            .from("virtual_crypto_holdings")
-            .update({ amount: newAmount })
-            .eq("id", holding.id);
+          await supabase.from("virtual_crypto_holdings").update({ amount: newAmount }).eq("id", holding.id);
         }
 
-        // Record transaction
-        await supabase
-          .from("virtual_crypto_transactions")
-          .insert({
-            user_id: userId,
-            crypto_id: selectedCrypto.id,
-            crypto_symbol: selectedCrypto.symbol,
-            crypto_name: selectedCrypto.name,
-            transaction_type: "sell",
-            amount: amount,
-            price_per_unit: selectedCrypto.current_price,
-            total_cost: totalUsd
-          });
+        await supabase.from("virtual_crypto_transactions").insert({
+          user_id: userId, crypto_id: selectedCrypto.id, crypto_symbol: selectedCrypto.symbol,
+          crypto_name: selectedCrypto.name, transaction_type: "sell", amount,
+          price_per_unit: selectedCrypto.current_price, total_cost: totalUsd,
+        });
 
-        // Add $GRAM
         const newBalance = gramBalance + gramCost;
-        await supabase
-          .from("profiles")
-          .update({ token_balance: newBalance })
-          .eq("user_id", userId);
-
+        await supabase.from("profiles").update({ token_balance: newBalance }).eq("user_id", userId);
         onBalanceChange?.(newBalance);
         toast.success(`Sold ${amount} ${selectedCrypto.symbol.toUpperCase()} for ${gramCost} $GRAM`);
       }
@@ -309,8 +294,6 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
     );
   }
 
-  const tradeUsdAmount = parseFloat(tradeAmount || "0") * (selectedCrypto?.current_price || 0);
-  const tradeGramCost = calculateGramCost(tradeUsdAmount);
 
   return (
     <div className="space-y-6">
@@ -537,78 +520,17 @@ export const CryptoMarket = ({ userId, gramBalance = 0, onBalanceChange }: Crypt
         Data provided by CoinGecko API • 1 $GRAM = $0.10 USD (virtual trading)
       </p>
 
-      {/* Trade Dialog */}
-      <Dialog open={showTradeDialog} onOpenChange={setShowTradeDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              {selectedCrypto && (
-                <>
-                  <img 
-                    src={selectedCrypto.image} 
-                    alt={selectedCrypto.name}
-                    className="w-6 h-6 rounded-full"
-                  />
-                  {tradeType === "buy" ? "Buy" : "Sell"} {selectedCrypto.name}
-                </>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <label className="text-sm font-medium">Amount ({selectedCrypto?.symbol.toUpperCase()})</label>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={tradeAmount}
-                onChange={(e) => setTradeAmount(e.target.value)}
-                min="0"
-                step="0.000001"
-                className="mt-1"
-              />
-            </div>
-            
-            {selectedCrypto && tradeAmount && (
-              <div className="p-4 rounded-lg bg-secondary/50 space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Price per {selectedCrypto.symbol.toUpperCase()}</span>
-                  <span>{formatPrice(selectedCrypto.current_price)}</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">USD Value</span>
-                  <span>{formatPrice(tradeUsdAmount)}</span>
-                </div>
-                <div className="flex justify-between font-semibold pt-2 border-t border-border">
-                  <span>{tradeType === "buy" ? "Cost" : "You'll Receive"}</span>
-                  <span className={tradeType === "buy" ? "text-destructive" : "text-accent"}>
-                    {tradeGramCost.toLocaleString()} $GRAM
-                  </span>
-                </div>
-                {tradeType === "buy" && (
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Your Balance</span>
-                    <span className={gramBalance < tradeGramCost ? "text-destructive" : ""}>
-                      {gramBalance.toLocaleString()} $GRAM
-                    </span>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowTradeDialog(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleTrade}
-              disabled={processing || !tradeAmount || parseFloat(tradeAmount) <= 0}
-              className={tradeType === "buy" ? "bg-accent hover:bg-accent/80" : ""}
-            >
-              {processing ? "Processing..." : `${tradeType === "buy" ? "Buy" : "Sell"} Now`}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Advanced Trade Dialog */}
+      <AdvancedTradeDialog
+        open={showTradeDialog}
+        onOpenChange={setShowTradeDialog}
+        crypto={selectedCrypto}
+        tradeType={tradeType}
+        gramBalance={gramBalance}
+        gramToUsdRate={GRAM_TO_USD_RATE}
+        processing={processing}
+        onExecuteTrade={handleAdvancedTrade}
+      />
     </div>
   );
 };
