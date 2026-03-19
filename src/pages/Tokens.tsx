@@ -8,7 +8,8 @@ import { MyTokens } from "@/components/tokens/MyTokens";
 import { CryptoMarket } from "@/components/tokens/CryptoMarket";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Plus, Coins, Wallet, TrendingUp, BarChart3 } from "lucide-react";
+import { Plus, Coins, Wallet, TrendingUp, BarChart3, Bot } from "lucide-react";
+import { AlgoTrading } from "@/components/tokens/AlgoTrading";
 import { toast } from "sonner";
 
 const Tokens = () => {
