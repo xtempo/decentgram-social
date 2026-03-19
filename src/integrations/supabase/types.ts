@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      algo_trading_bots: {
+        Row: {
+          config: Json
+          created_at: string
+          crypto_id: string
+          crypto_name: string
+          crypto_symbol: string
+          id: string
+          last_executed_at: string | null
+          status: string
+          strategy_type: string
+          total_profit_loss: number
+          total_trades: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          crypto_id: string
+          crypto_name: string
+          crypto_symbol: string
+          id?: string
+          last_executed_at?: string | null
+          status?: string
+          strategy_type: string
+          total_profit_loss?: number
+          total_trades?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          crypto_id?: string
+          crypto_name?: string
+          crypto_symbol?: string
+          id?: string
+          last_executed_at?: string | null
+          status?: string
+          strategy_type?: string
+          total_profit_loss?: number
+          total_trades?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       comments: {
         Row: {
           content: string
