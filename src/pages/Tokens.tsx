@@ -116,6 +116,14 @@ const Tokens = () => {
             />
           </TabsContent>
 
+          <TabsContent value="algo">
+            <AlgoTrading 
+              userId={user.id} 
+              gramBalance={profile?.token_balance || 0} 
+              onBalanceChange={(newBalance) => setProfile({ ...profile, token_balance: newBalance })} 
+            />
+          </TabsContent>
+
           <TabsContent value="marketplace">
             <TokenMarketplace userId={user.id} gramBalance={profile?.token_balance || 0} onBalanceChange={(newBalance) => setProfile({ ...profile, token_balance: newBalance })} />
           </TabsContent>
