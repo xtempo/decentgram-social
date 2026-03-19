@@ -85,10 +85,14 @@ const Tokens = () => {
         </div>
 
         <Tabs defaultValue="crypto" className="space-y-6">
-          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+          <TabsList className="grid w-full max-w-3xl grid-cols-5">
             <TabsTrigger value="crypto" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Crypto
+            </TabsTrigger>
+            <TabsTrigger value="algo" className="flex items-center gap-2">
+              <Bot className="h-4 w-4" />
+              Algo Trading
             </TabsTrigger>
             <TabsTrigger value="marketplace" className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4" />
